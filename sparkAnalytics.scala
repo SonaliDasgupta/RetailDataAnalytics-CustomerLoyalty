@@ -120,14 +120,129 @@ val categories=sc.textFile("categories")
 categories.count
 res19: Long = 58
 
-val category_info=categories.map(c=>(c(0).toInt,c(1).toInt,c(2).toString))
+val category_info=categories.map(c=>(c.split(","))).map(c=>(c(0).toInt,c(1).toInt,c(2).toString))
 
 val top10ProdCategories=top10Products.map(p=>p._2)
 val top10Cat=top10ProdCategories.collect().toList
 top10Cat: List[Int] = List(6, 9, 17, 18, 24, 29, 43, 45, 46, 48)
 
 val top10CatInfo=category_info.filter(c=>top10Cat.contains(c._1))
-//0??
+top10CatInfo.collect().foreach(println)
+(6,2,Tennis & Racquet)                                                          
+(9,3,Cardio Equipment)
+(17,4,Cleats)
+(18,4,Men's Footwear)
+(24,5,Women's Apparel)
+(29,5,Shop By Sport)
+(43,7,Camping & Hiking)
+(45,7,Fishing)
+(46,7,Indoor/Outdoor Games)
+(48,7,Water Sports)
+//most preferred categories
+
+val departments=sc.textFile("departments")
+val dept=departments.map(d=>d.split(",")).map(d=>(d(0).toInt,d(1).toString))
+val top10ProdsDeptId=top10CatInfo.map(c=>c._2).collect().distinct.toList
+top10ProdsDeptId: List[Int] = List(2, 3, 4, 5, 7)
+//most popular departments
+val topDepts=dept.filter(d=>top10ProdsDeptId.contains(d._1))
+topDepts.collect().foreach(println)
+(2,Fitness)                                                                     
+(3,Footwear)
+(4,Apparel)
+(5,Golf)
+(7,Fan Shop)
+//most popular departments though not necessarily in that order
+
+//calculate total sales for each category and department
+//PERFORM JOIN ON order_items vs products vc categories vs departments
+//ONLY FOR ALREADY COMPLETED AND CLOSED ORDERS 
+val orderInfo=order_info.map(o=>o.split(",")).map(o=>(o(0).toInt,o(3).toString))
+val ordersDone=orderInfo.filter(o=>(List("COMPLETE","CLOSED").contains(o._2)))
+ ordersDone.count
+res43: Long = 30455  
+//processing required for these many orders
+ val ordersDoneIds=ordersDone.map(o=>o._1).collect().toList
+ val orderItemsDone=orderItems.map(oi=>oi.split(",")).map(oi=>(oi(0).toInt,oi(1).toInt,oi(2).toInt,oi(3).toInt,oi(4).toDouble, oi(5).toDouble))
+ val orderItems_done=orderItemsDone.filter(oi=>ordersDoneIds.contains(oi._2))
+
+ val productsInfo=products.map(p=>p.split(",")).map(p=>(p(0).toInt,p))
+ 
+ val orderItemsDone=orderItems_done.map(oi=>(oi._3,oi))
+
+ val productsDone=productsInfo.join(orderItemsDone).map(t=>(t._2._1(0),t._2._1(1),t._2._1(2),t._2._2._5)).distinct
+
+productsDone.take(5).foreach(println)
+(295,38,Fitbit The One Wireless Activity & Sleep Trac,199.9)                    
+(273,13,Under Armour Kids' Mercenary Slide,139.95)
+(565,26,adidas Youth Germany Black/Red Away Match Soc,210.0)
+(835,37,Bridgestone e6 Straight Distance NFL Carolina,95.97)
+(775,35,Clicgear 8.0 Shoe Brush,29.97)
+
+//top 5 products with maximum price
+val top5=productsDone.map(p=>(p._4,p)).distinct.sortByKey(ascending=false).top(5).map(p=>p._2)
+
+top5.foreach(println)
+(208,10,SOLE E35 Elliptical,1999.99)
+(60,4,SOLE E25 Elliptical,999.99)
+(860,38,Bushnell Pro X7 Jolt Slope Rangefinder,599.99)
+(226,11,Bowflex SelectTech 1090 Dumbbells,599.99)
+(724,33,LIJA Women's Mid-Length Panel Golf Shorts,500.0)
+
+//join productsDone with categories
+val prodCat=productsDone.map(p=>(p._2.toInt,p))
+val cat=category_info.map(c=>(c._1,c))
+val prod_Cat=cat.join(prodCat)
+val prodCatInfo=prod_Cat.map(p=>(p._2._2._3,p._1,p._2._1(2),p._2._2._4))
+//productName, categoryId,categoryName,amountSpent
+
+//categories on which maximum amount is spent
+
+val catSpent=prodCatInfo.map(p=>(p._4,p)).sortByKey(ascending=false).map(p=>(p._2._3,(p._1,p._2._1)))
+
+val catAgg=catSpent.reduceByKey((c1,c2)=>(c1._1+c2._1, ""))
+val catAgg1=catAgg.map(c=>(c._2._1,c._1)).sortByKey(ascending=false)
+catAgg1.top(5).foreach(println)
+(6493.35,Electronics)                                                           
+(4658.01,Kids' Golf Clubs)
+(3783.0,Golf Shoes)
+(3599.2499999999995,Boxing & MMA)
+(3054.37,Golf Gloves)
+//category aggregates done
+
+//now rank the departments as per sales
+val deptInfo=dept.map(d=>(d._1.toInt,d))
+val catAgg2=catAgg1.map(c=>(c._2,c._1))
+val categories=sc.textFile("categories")
+val cat=categories.map(c=>c.split(","))
+val cat1=cat.map(c=>(c(2),c(1)))
+val joinCat=cat1.join(catAgg2)
+val deptCat=joinCat.map(t=>(t._2._1.toInt,t._2._2))
+val dept_info=deptInfo.map(d=>(d._1.toInt,d._2._2))
+val deptSales=dept_info.join(deptCat)
+
+//order the sales
+val orderedSales=deptSales.reduceByKey((t1,t2)=>(t1._1,(t1._2+t2._2))).map(t=>(t._2._2,t._2._1)).sortByKey(ascending=false)
+
+orderedSales.collect.foreach(println)
+(28120.949999999997,Outdoors)
+(17256.120000000003,Footwear)
+(8094.040000000001,Fitness)
+(6723.790000000001,Golf)
+(4084.48,Fan Shop)
+(3578.9300000000003,Apparel)
+
+//while finding total revenue don't forget to reduceByKey !!
+
+
+
+
+
+
+
+
+
+
 
 
 

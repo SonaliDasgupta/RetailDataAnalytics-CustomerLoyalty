@@ -11,3 +11,5 @@ sqoop import --connect jdbc:mysql://quickstart.cloudera/retail_db --username roo
 sqoop import --connect jdbc:mysql://quickstart.cloudera/retail_db --username root --password cloudera --table products --target-dir products
 
 sqoop import --connect jdbc:mysql://quickstart.cloudera/retail_db --username root --password cloudera --table categories --target-dir categories
+
+sqoop import --connect jdbc:mysql://quickstart.cloudera/retail_db --username root --password cloudera --table departments --target-dir departments
